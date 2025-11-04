@@ -1,9 +1,10 @@
 import { User as FirebaseUser } from 'firebase/auth'
-import { supabase } from './supabase'
+import { getAuthenticatedSupabaseClient } from './supabase'
 
 export async function syncFirebaseUserToSupabase(user: FirebaseUser) {
   try {
-    const idToken = await user.getIdToken()
+    // Use authenticated Supabase client that passes Firebase token
+    const supabase = await getAuthenticatedSupabaseClient()
 
     const { error } = await supabase
       .from('users')
@@ -19,8 +20,16 @@ export async function syncFirebaseUserToSupabase(user: FirebaseUser) {
 
     if (error) {
       console.error('Error syncing user to Supabase:', error)
+      throw error
+    } else {
+      console.log('✅ User synced to Supabase successfully')
     }
-  } catch (error) {
-    console.error('Error syncing user:', error)
+  } catch (error: any) {
+    // Only log if it's not a configuration error
+    if (error?.message?.includes('environment variables') || error?.message?.includes('Not authenticated')) {
+      console.warn('⚠️ Supabase sync skipped:', error.message)
+    } else {
+      console.error('Error syncing user to Supabase:', error)
+    }
   }
 }

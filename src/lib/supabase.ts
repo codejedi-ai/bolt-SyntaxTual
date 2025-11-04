@@ -1,13 +1,59 @@
 import { createClient } from '@supabase/supabase-js'
+import { auth } from './firebase'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-  },
-})
+// Validate environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('⚠️ Supabase environment variables are not set. Supabase features will not work.')
+}
+
+// Create a single default client for unauthenticated operations
+// Note: This should rarely be used - prefer getAuthenticatedSupabaseClient()
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder',
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  }
+)
+
+/**
+ * Get an authenticated Supabase client with Firebase ID token
+ * This should be used for all authenticated requests to Supabase
+ * This prevents multiple GoTrueClient instances by reusing configuration
+ */
+export async function getAuthenticatedSupabaseClient() {
+  const firebaseUser = auth.currentUser
+  if (!firebaseUser) {
+    throw new Error('Not authenticated - no Firebase user')
+  }
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase environment variables are not configured')
+  }
+
+  const idToken = await firebaseUser.getIdToken()
+  
+  // Create client with Firebase token in headers
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
+}
 
 export type Agent = {
   id: string

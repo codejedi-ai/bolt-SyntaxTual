@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabase, type Agent, type AgentDeployment } from '@/lib/supabase'
+import { getAuthenticatedSupabaseClient, type Agent, type AgentDeployment } from '@/lib/supabase'
 import { AgentAssembler } from '@/lib/agentAssembler'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,10 +13,12 @@ import { javascript } from '@codemirror/lang-javascript'
 import { vscodeDark } from '@uiw/codemirror-theme-vscode'
 import DashboardLayout from '@/components/DashboardLayout'
 import { ArrowLeft, Save, Rocket, History, FileCode, Sparkles } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function AgentDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deploying, setDeploying] = useState(false)
@@ -41,6 +43,7 @@ export default function AgentDetailPage() {
 
   const loadAgent = async () => {
     try {
+      const supabase = await getAuthenticatedSupabaseClient()
       const { data, error } = await supabase
         .from('agents')
         .select('*')
@@ -66,6 +69,7 @@ export default function AgentDetailPage() {
 
   const loadDeployments = async () => {
     try {
+      const supabase = await getAuthenticatedSupabaseClient()
       const { data, error } = await supabase
         .from('agent_deployments')
         .select('*')
@@ -100,6 +104,7 @@ export default function AgentDetailPage() {
 
     try {
       const config = AgentAssembler.parseYAML(yamlConfig)
+      const supabase = await getAuthenticatedSupabaseClient()
 
       const { error } = await supabase
         .from('agents')
@@ -131,14 +136,14 @@ export default function AgentDetailPage() {
     setDeploying(true)
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
-
+      
+      const supabase = await getAuthenticatedSupabaseClient()
       const { data, error } = await supabase
         .from('agent_deployments')
         .insert({
           agent_id: id,
-          user_id: user.id,
+          user_id: user.uid,
           deployment_status: 'pending'
         })
         .select()

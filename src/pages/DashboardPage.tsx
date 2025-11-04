@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { type Agent } from '@/lib/supabase'
+import { type Agent, getAuthenticatedSupabaseClient } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Settings, Trash2, ExternalLink } from 'lucide-react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useAuth } from '@/hooks/useAuth'
-import { auth } from '@/lib/firebase'
 
 export default function DashboardPage() {
   const [agents, setAgents] = useState<Agent[]>([])
@@ -22,23 +20,9 @@ export default function DashboardPage() {
     }
   }, [user])
 
-  const getAuthenticatedClient = async () => {
-    const firebaseUser = auth.currentUser
-    if (!firebaseUser) throw new Error('Not authenticated')
-
-    const idToken = await firebaseUser.getIdToken()
-    return createSupabaseClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      },
-    })
-  }
-
   const loadAgents = async () => {
     try {
-      const supabase = await getAuthenticatedClient()
+      const supabase = await getAuthenticatedSupabaseClient()
       const { data, error } = await supabase
         .from('agents')
         .select('*')
@@ -57,7 +41,7 @@ export default function DashboardPage() {
     if (!confirm('Are you sure you want to delete this agent?')) return
 
     try {
-      const supabase = await getAuthenticatedClient()
+      const supabase = await getAuthenticatedSupabaseClient()
       const { error } = await supabase
         .from('agents')
         .delete()

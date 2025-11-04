@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, type AgentTemplate } from '@/lib/supabase'
+import { getAuthenticatedSupabaseClient, type AgentTemplate } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import { AgentAssembler } from '@/lib/agentAssembler'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,6 +45,7 @@ agent:
 
 export default function CreateAgentPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [templates, setTemplates] = useState<AgentTemplate[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
@@ -62,6 +64,7 @@ export default function CreateAgentPage() {
 
   const loadTemplates = async () => {
     try {
+      const supabase = await getAuthenticatedSupabaseClient()
       const { data, error } = await supabase
         .from('agent_templates')
         .select('*')
@@ -106,18 +109,18 @@ export default function CreateAgentPage() {
     setLoading(true)
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         navigate('/login')
         return
       }
 
       const config = AgentAssembler.parseYAML(yamlConfig)
+      const supabase = await getAuthenticatedSupabaseClient()
 
       const { data, error } = await supabase
         .from('agents')
         .insert({
-          user_id: user.id,
+          user_id: user.uid,
           name: name || config.name,
           description: config.description || '',
           yaml_config: yamlConfig,
