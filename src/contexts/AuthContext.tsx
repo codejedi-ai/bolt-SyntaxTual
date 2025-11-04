@@ -1,7 +1,7 @@
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import {
   User as FirebaseUser,
-  getRedirectResult,
+  signInWithPopup,
   signOut,
   onAuthStateChanged,
   GoogleAuthProvider,
@@ -67,7 +67,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       provider.setCustomParameters({
         prompt: 'select_account'
       });
-      await getRedirectResult(auth, provider);
+      await signInWithPopup(auth, provider);
     } catch (err: any) {
       setError(err.message);
       throw err;
