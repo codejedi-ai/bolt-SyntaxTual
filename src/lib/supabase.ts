@@ -1,9 +1,38 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { auth } from './firebase'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+  },
+})
+
+export async function getAuthenticatedSupabaseClient(): Promise<SupabaseClient> {
+  const user = auth.currentUser
+  if (!user) {
+    return supabase
+  }
+
+  try {
+    const idToken = await user.getIdToken()
+    return createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      },
+      auth: {
+        persistSession: false,
+      },
+    })
+  } catch (error) {
+    console.error('Error getting Firebase token:', error)
+    return supabase
+  }
+}
 
 export type Agent = {
   id: string

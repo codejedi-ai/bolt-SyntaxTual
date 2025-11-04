@@ -9,6 +9,7 @@ import {
   signInWithEmailAndPassword
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { syncFirebaseUserToSupabase } from '@/lib/authHelpers';
 
 interface User {
   uid: string;
@@ -41,7 +42,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         setUser({
           uid: firebaseUser.uid,
@@ -49,6 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           name: firebaseUser.displayName,
           picture: firebaseUser.photoURL
         });
+        await syncFirebaseUserToSupabase(firebaseUser);
       } else {
         setUser(null);
       }
