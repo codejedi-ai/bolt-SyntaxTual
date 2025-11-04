@@ -1,13 +1,12 @@
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import {
   User as FirebaseUser,
-  signInWithRedirect,
+  signInWithPopup,
   signOut,
   onAuthStateChanged,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  getRedirectResult
+  signInWithEmailAndPassword
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { syncFirebaseUserToSupabase } from '@/lib/authHelpers';
@@ -43,26 +42,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          setUser({
-            uid: result.user.uid,
-            email: result.user.email,
-            name: result.user.displayName,
-            picture: result.user.photoURL
-          });
-          await syncFirebaseUserToSupabase(result.user);
-        }
-      } catch (err: any) {
-        console.error('Redirect result error:', err);
-        setError(err.message);
-      }
-    };
-
-    checkRedirectResult();
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         setUser({
@@ -85,7 +64,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setError(null);
       const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
+      await signInWithPopup(auth, provider);
     } catch (err: any) {
       setError(err.message);
       throw err;
