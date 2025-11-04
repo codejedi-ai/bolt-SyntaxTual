@@ -81,6 +81,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       setError(null);
+      // Clear Supabase client cache before logout
+      const { clearAuthenticatedClient } = await import('@/lib/supabase');
+      clearAuthenticatedClient();
       await signOut(auth);
       window.location.href = '/';
     } catch (err: any) {

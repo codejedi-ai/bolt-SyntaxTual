@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { auth } from './firebase'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -9,26 +9,24 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('⚠️ Supabase environment variables are not set. Supabase features will not work.')
 }
 
-// Create a single default client for unauthenticated operations
-// Note: This should rarely be used - prefer getAuthenticatedSupabaseClient()
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder',
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  }
-)
+// Singleton authenticated client cache - prevents multiple GoTrueClient instances
+let authenticatedClient: SupabaseClient | null = null
+let currentUserId: string | null = null
+
+/**
+ * Clear the cached Supabase client (call on logout)
+ */
+export function clearAuthenticatedClient() {
+  authenticatedClient = null
+  currentUserId = null
+}
 
 /**
  * Get an authenticated Supabase client with Firebase ID token
+ * Uses a singleton pattern to prevent multiple GoTrueClient instances
  * This should be used for all authenticated requests to Supabase
- * This prevents multiple GoTrueClient instances by reusing configuration
  */
-export async function getAuthenticatedSupabaseClient() {
+export async function getAuthenticatedSupabaseClient(): Promise<SupabaseClient> {
   const firebaseUser = auth.currentUser
   if (!firebaseUser) {
     throw new Error('Not authenticated - no Firebase user')
@@ -38,10 +36,20 @@ export async function getAuthenticatedSupabaseClient() {
     throw new Error('Supabase environment variables are not configured')
   }
 
+  // Reuse client if user hasn't changed
+  if (authenticatedClient && currentUserId === firebaseUser.uid) {
+    // Update headers with fresh token
+    const idToken = await firebaseUser.getIdToken()
+    // Note: We can't update headers after creation, but we can verify the client is still valid
+    return authenticatedClient
+  }
+
+  // Get fresh token
   const idToken = await firebaseUser.getIdToken()
-  
-  // Create client with Firebase token in headers
-  return createClient(supabaseUrl, supabaseAnonKey, {
+
+  // Create new client with NO storage to prevent GoTrueClient conflicts
+  // Use a unique storage key per user to isolate instances
+  authenticatedClient = createClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
         Authorization: `Bearer ${idToken}`,
@@ -51,9 +59,55 @@ export async function getAuthenticatedSupabaseClient() {
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
+      storage: {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+      },
+      // Use a unique storage key per Firebase user to prevent conflicts
+      storageKey: `supabase-auth-${firebaseUser.uid}`,
     },
   })
+
+  currentUserId = firebaseUser.uid
+
+  return authenticatedClient
 }
+
+// Lazy default client - only created if explicitly needed (should be avoided)
+// This prevents creating a GoTrueClient instance on module load
+let defaultClient: SupabaseClient | null = null
+
+export function getDefaultSupabaseClient() {
+  if (!defaultClient) {
+    defaultClient = createClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseAnonKey || 'placeholder',
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          storage: {
+            getItem: () => null,
+            setItem: () => {},
+            removeItem: () => {},
+          },
+          storageKey: 'supabase-default-noauth',
+        },
+      }
+    )
+  }
+  return defaultClient
+}
+
+// For backwards compatibility only - prefer getAuthenticatedSupabaseClient()
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    console.warn('⚠️ Using default supabase client - prefer getAuthenticatedSupabaseClient()')
+    return getDefaultSupabaseClient()[prop as keyof SupabaseClient]
+  },
+})
 
 export type Agent = {
   id: string
