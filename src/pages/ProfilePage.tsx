@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 const ProfilePage: React.FC = () => {
   const { user, logout } = useAuth();
@@ -34,12 +33,12 @@ const ProfilePage: React.FC = () => {
         <Card className="bg-gray-800/50 border-gray-700">
           <CardHeader>
             <CardTitle className="text-white">User Information</CardTitle>
-            <CardDescription className="text-white/70">Your Auth0 profile details</CardDescription>
+            <CardDescription className="text-white/70">Your Firebase profile details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-center gap-6">
               <Avatar className="h-24 w-24">
-                <AvatarImage src={user?.picture} alt={user?.name || "User"} />
+                <AvatarImage src={user?.picture || undefined} alt={user?.name || "User"} />
                 <AvatarFallback className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-2xl">
                   {getUserInitials()}
                 </AvatarFallback>
@@ -47,11 +46,6 @@ const ProfilePage: React.FC = () => {
               <div className="space-y-2">
                 <h2 className="text-2xl font-bold text-white">{user?.name || "User"}</h2>
                 <p className="text-white/70">{user?.email}</p>
-                {user?.email_verified && (
-                  <Badge className="bg-green-600/20 text-green-400 border-green-600/30">
-                    Email Verified
-                  </Badge>
-                )}
               </div>
             </div>
 
@@ -60,7 +54,7 @@ const ProfilePage: React.FC = () => {
               <div className="bg-gray-900/50 rounded-lg p-4 font-mono text-sm space-y-2">
                 <div className="grid grid-cols-[150px_1fr] gap-2">
                   <span className="text-white/50">User ID:</span>
-                  <span className="text-cyan-400">{user?.sub || 'N/A'}</span>
+                  <span className="text-cyan-400">{user?.uid || 'N/A'}</span>
                 </div>
                 <div className="grid grid-cols-[150px_1fr] gap-2">
                   <span className="text-white/50">Email:</span>
@@ -71,20 +65,8 @@ const ProfilePage: React.FC = () => {
                   <span className="text-cyan-400">{user?.name || 'N/A'}</span>
                 </div>
                 <div className="grid grid-cols-[150px_1fr] gap-2">
-                  <span className="text-white/50">Nickname:</span>
-                  <span className="text-cyan-400">{user?.nickname || 'N/A'}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] gap-2">
                   <span className="text-white/50">Picture URL:</span>
                   <span className="text-cyan-400 truncate">{user?.picture || 'N/A'}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] gap-2">
-                  <span className="text-white/50">Email Verified:</span>
-                  <span className="text-cyan-400">{user?.email_verified ? 'Yes' : 'No'}</span>
-                </div>
-                <div className="grid grid-cols-[150px_1fr] gap-2">
-                  <span className="text-white/50">Updated At:</span>
-                  <span className="text-cyan-400">{user?.updated_at || 'N/A'}</span>
                 </div>
               </div>
             </div>

@@ -1,5 +1,21 @@
-import React, { createContext, useContext, ReactNode } from 'react';
-import { useAuth0, User } from '@auth0/auth0-react';
+import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import {
+  User as FirebaseUser,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+
+interface User {
+  uid: string;
+  email: string | null;
+  name: string | null;
+  picture: string | null;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -9,6 +25,8 @@ interface AuthContextType {
   login: () => Promise<void>;
   logout: () => void;
   loginWithRedirect: () => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,31 +36,83 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const {
-    user,
-    isLoading: loading,
-    isAuthenticated,
-    loginWithRedirect,
-    logout: auth0Logout,
-    error: auth0Error
-  } = useAuth0();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: firebaseUser.displayName,
+          picture: firebaseUser.photoURL
+        });
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const login = async () => {
-    await loginWithRedirect();
+    try {
+      setError(null);
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    }
   };
 
-  const logout = () => {
-    auth0Logout({ logoutParams: { returnTo: window.location.origin } });
+  const loginWithRedirect = async () => {
+    await login();
+  };
+
+  const logout = async () => {
+    try {
+      setError(null);
+      await signOut(auth);
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  const signUpWithEmail = async (email: string, password: string) => {
+    try {
+      setError(null);
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    try {
+      setError(null);
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    }
   };
 
   const value: AuthContextType = {
-    user: isAuthenticated ? user || null : null,
+    user,
     loading,
-    error: auth0Error?.message || null,
-    isAuthenticated,
+    error,
+    isAuthenticated: !!user,
     login,
     logout,
     loginWithRedirect,
+    signUpWithEmail,
+    signInWithEmail,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
