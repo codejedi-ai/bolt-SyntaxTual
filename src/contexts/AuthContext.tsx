@@ -79,6 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setError(null);
       await signOut(auth);
+      window.location.href = '/';
     } catch (err: any) {
       setError(err.message);
       throw err;
