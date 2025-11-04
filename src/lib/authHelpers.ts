@@ -1,9 +1,9 @@
 import { User as FirebaseUser } from 'firebase/auth'
-import { getAuthenticatedSupabaseClient } from './supabase'
+import { supabase } from './supabase'
 
 export async function syncFirebaseUserToSupabase(user: FirebaseUser) {
   try {
-    const supabase = await getAuthenticatedSupabaseClient()
+    const idToken = await user.getIdToken()
 
     const { error } = await supabase
       .from('users')
